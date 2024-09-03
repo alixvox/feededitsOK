@@ -1,3 +1,4 @@
+import os
 import feedparser
 import xml.etree.ElementTree as ET
 import re
@@ -66,6 +67,9 @@ def update_feed():
                 alt_text = description_html[alt_start:alt_end]
                 media_title = ET.SubElement(item, "media:title")
                 media_title.text = alt_text
+
+    # Ensure the static directory exists
+    os.makedirs("static", exist_ok=True)
 
     tree = ET.ElementTree(rss)
     ET.indent(tree, space="  ")

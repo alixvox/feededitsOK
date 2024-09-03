@@ -19,11 +19,11 @@ scheduler.add_job(func=update_feeds, trigger="interval", minutes=20)
 scheduler.start()
 
 # Routes to serve the RSS feeds
-@app.route('/rss/freepressokc')
+@app.route('/new_freepressokc.rss')
 def serve_freepressokc():
     return send_file('static/new_freepressokc.rss', mimetype='application/rss+xml')
 
-# @app.route('/rss/ksbiupdates')
+# @app.route('/rss/ksbiupdates.rss')
 # def serve_ksbiupdates():
 #     return send_file('static/new_ksbiupdates.rss', mimetype='application/rss+xml')
 
