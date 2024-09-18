@@ -3,3 +3,7 @@ venv_feededitsOK
 freepressokc.rss
 __pycache__
 static
+*.pp
+*.te
+feededitsok.pp
+feededitsok.te
