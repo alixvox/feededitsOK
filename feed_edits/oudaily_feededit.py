@@ -17,30 +17,36 @@ def update_feed():
     rss.set("xmlns:slash", "http://purl.org/rss/1.0/modules/slash/")
 
     channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = feed.feed.get('title', 'OU Daily RSS Feed')
-    ET.SubElement(channel, "link").text = feed.feed.get('link', '')
-    ET.SubElement(channel, "description").text = feed.feed.get('description', '')
+    ET.SubElement(channel, "title").text = feed.feed.title
+    ET.SubElement(channel, "link").text = feed.feed.link
+    ET.SubElement(channel, "description").text = feed.feed.description
     ET.SubElement(channel, "language").text = "en-US"
-    
-    last_build_date = feed.feed.get('updated', datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000'))
-    ET.SubElement(channel, "lastBuildDate").text = last_build_date
+
+    # Check if the 'updated' attribute exists
+    if hasattr(feed.feed, 'updated'):
+        ET.SubElement(channel, "lastBuildDate").text = feed.feed.updated
+    else:
+        # Use the current date and time as a fallback
+        ET.SubElement(channel, "lastBuildDate").text = datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000')
+
     ET.SubElement(channel, "copyright").text = "Copyright"
     ET.SubElement(channel, "atom:link", href=original_feed_url, type="application/rss+xml", rel="self")
 
     for entry in feed.entries:
         item = ET.SubElement(channel, "item")
         
-        ET.SubElement(item, "title").text = entry.get('title', 'No Title')
-        ET.SubElement(item, "link").text = entry.get('link', '')
-        ET.SubElement(item, "description").text = entry.get('summary', 'No Description').strip()
-        ET.SubElement(item, "pubDate").text = entry.get('published', '')
-        ET.SubElement(item, "guid").text = entry.get('id', '')
+        ET.SubElement(item, "title").text = entry.title
+        ET.SubElement(item, "link").text = entry.link
+        ET.SubElement(item, "description").text = entry.summary.strip()
+        ET.SubElement(item, "pubDate").text = entry.published
+        ET.SubElement(item, "guid").text = entry.id
 
+        # Extract author information
         dc_creator = ET.SubElement(item, "dc:creator")
-        dc_creator.text = entry.get('author', 'Unknown')
+        dc_creator.text = entry.get("author", "Unknown")
 
-        # Handle the 'links' attribute to find and process enclosures
-        for link in entry.get('links', []):
+        # Handle enclosures in the links
+        for link in entry.links:
             if link.get('rel') == 'enclosure' and link.get('type', '').startswith('image/'):
                 img_url = link['href']
                 
@@ -55,7 +61,7 @@ def update_feed():
                 
                 # Optionally, add media:title tag
                 media_title = ET.SubElement(item, "media:title")
-                media_title.text = entry['title']
+                media_title.text = entry.title
 
     # Ensure the static directory exists
     os.makedirs("static", exist_ok=True)
