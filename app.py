@@ -22,7 +22,7 @@ def update_feeds():
 update_feeds()
 
 # Schedule periodic updates every 20 minutes
-scheduler.add_job(func=update_feeds, trigger="interval", minutes=20)
+scheduler.add_job(func=update_feeds, trigger="interval", hours=2)
 scheduler.start()
 
 # Routes to serve the RSS feeds
