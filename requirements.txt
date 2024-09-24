@@ -1,3 +1,15 @@
-Flask==2.2.5
 APScheduler==3.9.1
+click==8.1.7
 feedparser==6.0.10
+Flask==2.2.5
+gunicorn==23.0.0
+itsdangerous==2.2.0
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+packaging==24.1
+pytz==2024.2
+setuptools==75.1.0
+sgmllib3k==1.0.0
+six==1.16.0
+tzlocal==5.2
+Werkzeug==3.0.4
