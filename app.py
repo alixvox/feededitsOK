@@ -4,6 +4,7 @@ import time
 from feed_edits import freepressokc_feededit
 from feed_edits import nondoc_feededit
 from feed_edits import okenergytoday_feededit
+from feed_edits import oudaily_feededit
 
 app = Flask(__name__)
 
@@ -15,6 +16,7 @@ def update_feeds():
     freepressokc_feededit.update_feed()
     nondoc_feededit.update_feed()
     okenergytoday_feededit.update_feed()
+    oudaily_feededit.update_feed()
 
 # Initial feed update
 update_feeds()
@@ -35,6 +37,10 @@ def serve_nondoc():
 @app.route('/new_okenergytoday.rss')
 def serve_okenergytoday():
     return send_file('static/new_okenergytoday.rss', mimetype='application/rss+xml')
+
+@app.route('/new_oudaily.rss')
+def serve_oudaily():
+    return send_file('static/new_oudaily.rss', mimetype='application/rss+xml')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)

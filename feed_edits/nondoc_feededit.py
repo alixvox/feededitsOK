@@ -34,18 +34,19 @@ def update_feed():
         # Trim the description to the text after the image and before the [&#8230;]
         description_html = entry.description
 
-        # Debugging: Print the full description HTML to verify its content
-        print("Full description HTML:\n", description_html)
+        # # Debugging: Print the full description HTML to verify its content
+        # print("Full description HTML:\n", description_html)
 
         # Use regex to extract content between image tag and the ellipsis marker
         img_pattern = r'<img.*?>\s*(.*?)\s*\[&#8230;]'
         match = re.search(img_pattern, description_html, re.DOTALL)
 
-        # Debugging: Print the match result
-        if match:
-            print("Match found. Extracted description:\n", match.group(1).strip())
-        else:
-            print("No match found for the regex.")
+        # # Debugging: Print the match result
+        # if match:
+        #     print("Match found. Extracted description:\n", match.group(1).strip())
+        # else:
+        #     print("No match found for the regex.")
+            
         if match:
             refined_description = match.group(1).strip()  # Extract the matched description
         else:
