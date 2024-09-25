@@ -1,93 +1,95 @@
 import os
-import feedparser
-import xml.etree.ElementTree as ET
+import requests
+from lxml import etree
 import re
 
 def update_feed():
+    # Fetch the original feed with a custom User-Agent header
     original_feed_url = "https://nondoc.com/feed/"
-    feed = feedparser.parse(original_feed_url)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+    }
+    response = requests.get(original_feed_url, headers=headers)
+    response.raise_for_status()  # Check for HTTP errors
+    feed_content = response.content
 
-    rss = ET.Element("rss", version="2.0")
-    rss.set("xmlns:atom", "http://www.w3.org/2005/Atom")
-    rss.set("xmlns:dc", "http://purl.org/dc/elements/1.1/")
-    rss.set("xmlns:media", "http://search.yahoo.com/mrss/")
-    rss.set("xmlns:content", "http://purl.org/rss/1.0/modules/content/")
-    rss.set("xmlns:wfw", "http://wellformedweb.org/CommentAPI/")
-    rss.set("xmlns:sy", "http://purl.org/rss/1.0/modules/syndication/")
-    rss.set("xmlns:slash", "http://purl.org/rss/1.0/modules/slash/")
+    # Parse the feed content as XML
+    parser = etree.XMLParser(recover=True)
+    root = etree.fromstring(feed_content, parser=parser)
 
-    channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = feed.feed.title
-    ET.SubElement(channel, "link").text = feed.feed.link
-    ET.SubElement(channel, "description").text = feed.feed.description
-    ET.SubElement(channel, "language").text = "en-US"
-    ET.SubElement(channel, "lastBuildDate").text = feed.feed.updated
-    ET.SubElement(channel, "copyright").text = "Copyright"
-    ET.SubElement(channel, "atom:link", href="https://nondoc.com/feed/", type="application/rss+xml", rel="self")
+    # Define namespaces
+    ns = {
+        'content': 'http://purl.org/rss/1.0/modules/content/',
+        'wfw': 'http://wellformedweb.org/CommentAPI/',
+        'dc': 'http://purl.org/dc/elements/1.1/',
+        'atom': 'http://www.w3.org/2005/Atom',
+        'sy': 'http://purl.org/rss/1.0/modules/syndication/',
+        'slash': 'http://purl.org/rss/1.0/modules/slash/',
+        'media': 'http://search.yahoo.com/mrss/'
+    }
 
-    for entry in feed.entries:
-        item = ET.SubElement(channel, "item")
-        
-        ET.SubElement(item, "title").text = entry.title
-        ET.SubElement(item, "link").text = entry.link
+    # Get the <channel> element
+    channel = root.find('channel')
+    if channel is None:
+        print("No channel element found in the RSS feed.")
+        return
 
-        # Trim the description to the text after the image and before the [&#8230;]
-        description_html = entry.description
+    # Get all <item> elements
+    items = channel.findall('item')
+    print(f"Found {len(items)} items in the feed.")
 
-        # # Debugging: Print the full description HTML to verify its content
-        # print("Full description HTML:\n", description_html)
-
-        # Use regex to extract content between image tag and the ellipsis marker
-        img_pattern = r'<img.*?>\s*(.*?)\s*\[&#8230;]'
-        match = re.search(img_pattern, description_html, re.DOTALL)
-
-        # # Debugging: Print the match result
-        # if match:
-        #     print("Match found. Extracted description:\n", match.group(1).strip())
-        # else:
-        #     print("No match found for the regex.")
-            
-        if match:
-            refined_description = match.group(1).strip()  # Extract the matched description
+    for item in items:
+        # Extract image URL from <post-thumbnail><url>
+        post_thumbnail = item.find('post-thumbnail')
+        if post_thumbnail is not None:
+            url_element = post_thumbnail.find('url')
+            if url_element is not None and url_element.text:
+                image_url = url_element.text.strip()
+                print(f"Found image URL: {image_url}")
+            else:
+                image_url = None
+                print("No URL found in <post-thumbnail>.")
         else:
-            refined_description = "Description not found."
+            image_url = None
+            print("No <post-thumbnail> element found.")
 
-        ET.SubElement(item, "description").text = f"{refined_description}..."
+        # Add <media:content> and <media:thumbnail> elements
+        if image_url:
+            media_content = etree.SubElement(item, '{http://search.yahoo.com/mrss/}content')
+            media_content.set('url', image_url)
+            media_content.set('type', 'image/jpeg')  # Adjust type if necessary
+            print("Added <media:content> element.")
 
-        ET.SubElement(item, "pubDate").text = entry.published
-        ET.SubElement(item, "guid").text = entry.id
+            media_thumbnail = etree.SubElement(item, '{http://search.yahoo.com/mrss/}thumbnail')
+            media_thumbnail.set('url', image_url)
+            print("Added <media:thumbnail> element.")
 
-        dc_creator = ET.SubElement(item, "dc:creator")
-        dc_creator.text = entry.get("author", "Unknown")
+        # Remove <post-thumbnail> element
+        if post_thumbnail is not None:
+            item.remove(post_thumbnail)
+            print("Removed <post-thumbnail> element.")
 
-        # Handle embedded media
-        if 'img' in description_html:
-            img_start_index = description_html.find('src="') + 5
-            img_end_index = description_html.find('"', img_start_index)
-            img_url = description_html[img_start_index:img_end_index]
-
-            media_thumbnail = ET.SubElement(item, "media:thumbnail")
-            media_thumbnail.set("url", img_url)
-
-            media_content = ET.SubElement(item, "media:content")
-            media_content.set("type", "image/jpeg")
-            media_content.set("url", img_url)
-
-            # Extract alt text for the media title
-            alt_start = description_html.find('alt="') + 5
-            alt_end = description_html.find('"', alt_start)
-            if alt_start > 4 and alt_end > alt_start:
-                alt_text = description_html[alt_start:alt_end]
-                media_title = ET.SubElement(item, "media:title")
-                media_title.text = alt_text
+        # Clean up <description> element to remove embedded <img> tags
+        description = item.find('description')
+        if description is not None and description.text:
+            desc_text = description.text
+            # Remove <img> tags using regex
+            desc_text_clean = re.sub(r'<img[^>]*>', '', desc_text)
+            description.text = desc_text_clean
+            print("Cleaned up <description> element.")
 
     # Ensure the static directory exists
     os.makedirs("static", exist_ok=True)
 
-    # Write the RSS feed to a file
-    tree = ET.ElementTree(rss)
-    ET.indent(tree, space="  ")
-    tree.write("static/new_nondoc.rss", encoding="utf-8", xml_declaration=True)
+    # Write the modified RSS feed to a file with pretty printing
+    tree = etree.ElementTree(root)
+    tree.write(
+        "static/new_nondoc.rss",
+        encoding="utf-8",
+        xml_declaration=True,
+        pretty_print=True
+    )
+    print("Modified RSS feed has been written to static/new_nondoc.rss.")
 
 if __name__ == "__main__":
     update_feed()
