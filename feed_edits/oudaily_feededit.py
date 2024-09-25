@@ -6,26 +6,40 @@ from datetime import datetime
 import time
 
 def update_feed():
-    # Fetch the feed content using requests with a retry mechanism
     original_feed_url = "https://www.oudaily.com/search/?c[]=news,sports,culture&f=rss&ips=1080"
-    max_retries = 3
+    max_retries = 5
+    backoff_factor = 5  # Start with a 5-second delay
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (compatible; feededitsOK/1.0; +https:newson6.com/bot)'
+    }
+
     for attempt in range(max_retries):
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (compatible; feededitsOK/1.0; +https://feededitsok-f4bcffc7f729.herokuapp.com)'
-            }
-            response = requests.get(original_feed_url, timeout=10)
+            response = requests.get(original_feed_url, headers=headers, timeout=10)
             if response.status_code == 200:
+                # Successfully fetched the feed
+                feed_content = response.content
+                feed = feedparser.parse(feed_content)
                 break
+            elif response.status_code == 429:
+                print(f"Attempt {attempt+1}: Received 429 Too Many Requests.")
+                retry_after = int(response.headers.get('Retry-After', '0'))
+                if retry_after > 0:
+                    print(f"Server asked to retry after {retry_after} seconds.")
+                    time.sleep(retry_after)
+                wait_time = backoff_factor * (2 ** attempt)
+                print(f"Waiting for {wait_time} seconds before retrying...")
+                time.sleep(wait_time)
             else:
                 print(f"Attempt {attempt+1}: Failed to fetch the feed. Status code: {response.status_code}")
+                break  # Exit loop for other HTTP errors
         except requests.exceptions.RequestException as e:
             print(f"Attempt {attempt+1}: Exception occurred: {e}")
-        time.sleep(5)  # Wait before retrying
+            break  # Exit loop on exception
     else:
         print("Failed to fetch the feed after multiple attempts.")
-        return
-    
+        return    
     # Parse the feed content
     feed_content = response.content
     feed = feedparser.parse(feed_content)
