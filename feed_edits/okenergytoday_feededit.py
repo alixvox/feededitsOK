@@ -12,7 +12,8 @@ def update_feed():
 
     # Namespaces
     nsmap = {
-        None: 'http://www.w3.org/2005/Atom',
+        # Removed the default namespace mapping
+        # None: 'http://www.w3.org/2005/Atom',
         'content': 'http://purl.org/rss/1.0/modules/content/',
         'wfw': 'http://wellformedweb.org/CommentAPI/',
         'dc': 'http://purl.org/dc/elements/1.1/',
@@ -36,6 +37,12 @@ def update_feed():
     etree.SubElement(channel, 'description').text = feed.feed.get('description', 'Energy News Just A Click Away')
     etree.SubElement(channel, 'lastBuildDate').text = feed.feed.get('updated', datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000'))
     etree.SubElement(channel, 'language').text = feed.feed.get('language', 'en-US')
+
+    # Add atom:link element
+    atom_link = etree.SubElement(channel, etree.QName(nsmap['atom'], 'link'))
+    atom_link.set('href', feed.feed.get('href', original_feed_url))
+    atom_link.set('rel', 'self')
+    atom_link.set('type', 'application/rss+xml')
 
     # Add generator
     etree.SubElement(channel, 'generator').text = 'Custom Python Script'
@@ -94,21 +101,16 @@ def update_feed():
         img_match = re.search(r'<img[^>]+src="([^">]+)"', content_html)
         if img_match:
             image_url = img_match.group(1)
-            print(image_url)
 
         if not image_url:
             # Use placeholder image if no image is found
             # Placeholder image URL (solid color image)
-            placeholder_image_url = 'https://via.placeholder.com/400x300/38487A/FFFFFF?text=none'
+            placeholder_image_url = 'https://via.placeholder.com/400x300/38487A/FFFFFF?text=No+Image'
             image_url = placeholder_image_url
 
         # Add media:content and media:thumbnail
-        media_content = etree.SubElement(item, '{http://search.yahoo.com/mrss/}content')
-        media_content.set('url', image_url)
-        media_content.set('type', 'image/jpeg')
-        # Add media:thumbnail element
-        media_thumbnail = etree.SubElement(item, '{http://search.yahoo.com/mrss/}thumbnail')
-        media_thumbnail.set('url', image_url)
+        media_content = etree.SubElement(item, '{http://search.yahoo.com/mrss/}content', url=image_url, type='image/jpeg')
+        media_thumbnail = etree.SubElement(item, '{http://search.yahoo.com/mrss/}thumbnail', url=image_url)
 
     # Ensure the static directory exists
     os.makedirs("static", exist_ok=True)
