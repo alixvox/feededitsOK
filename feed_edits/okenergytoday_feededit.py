@@ -1,91 +1,121 @@
 import os
 import feedparser
-import xml.etree.ElementTree as ET
+from lxml import etree
+from datetime import datetime
 import re
+import html
 
 def update_feed():
+    # Parse the original feed
     original_feed_url = "https://www.okenergytoday.com/feed/"
     feed = feedparser.parse(original_feed_url)
 
-    rss = ET.Element("rss", version="2.0")
-    rss.set("xmlns:atom", "http://www.w3.org/2005/Atom")
-    rss.set("xmlns:dc", "http://purl.org/dc/elements/1.1/")
-    rss.set("xmlns:media", "http://search.yahoo.com/mrss/")
-    rss.set("xmlns:content", "http://purl.org/rss/1.0/modules/content/")
-    rss.set("xmlns:wfw", "http://wellformedweb.org/CommentAPI/")
-    rss.set("xmlns:sy", "http://purl.org/rss/1.0/modules/syndication/")
-    rss.set("xmlns:slash", "http://purl.org/rss/1.0/modules/slash/")
+    # Namespaces
+    nsmap = {
+        None: 'http://www.w3.org/2005/Atom',
+        'content': 'http://purl.org/rss/1.0/modules/content/',
+        'wfw': 'http://wellformedweb.org/CommentAPI/',
+        'dc': 'http://purl.org/dc/elements/1.1/',
+        'atom': 'http://www.w3.org/2005/Atom',
+        'sy': 'http://purl.org/rss/1.0/modules/syndication/',
+        'slash': 'http://purl.org/rss/1.0/modules/slash/',
+        'georss': 'http://www.georss.org/georss',
+        'geo': 'http://www.w3.org/2003/01/geo/wgs84_pos#',
+        'media': 'http://search.yahoo.com/mrss/'
+    }
 
-    channel = ET.SubElement(rss, "channel")
-    ET.SubElement(channel, "title").text = feed.feed.title
-    ET.SubElement(channel, "link").text = feed.feed.link
-    ET.SubElement(channel, "description").text = feed.feed.description
-    ET.SubElement(channel, "language").text = "en-US"  # Default language setting
-    ET.SubElement(channel, "lastBuildDate").text = feed.feed.updated
-    ET.SubElement(channel, "copyright").text = "Copyright"
-    ET.SubElement(channel, "atom:link", href="https://www.okenergytoday.com/feed/", type="application/rss+xml", rel="self")
+    # Create root RSS element
+    rss = etree.Element('rss', version='2.0', nsmap=nsmap)
 
+    # Create channel element
+    channel = etree.SubElement(rss, 'channel')
+
+    # Add channel information
+    etree.SubElement(channel, 'title').text = feed.feed.get('title', 'OK Energy Today')
+    etree.SubElement(channel, 'link').text = feed.feed.get('link', 'https://www.okenergytoday.com')
+    etree.SubElement(channel, 'description').text = feed.feed.get('description', 'Energy News Just A Click Away')
+    etree.SubElement(channel, 'lastBuildDate').text = feed.feed.get('updated', datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000'))
+    etree.SubElement(channel, 'language').text = feed.feed.get('language', 'en-US')
+
+    # Add generator
+    etree.SubElement(channel, 'generator').text = 'Custom Python Script'
+
+    # Process each entry
     for entry in feed.entries:
-        item = ET.SubElement(channel, "item")
-        
-        ET.SubElement(item, "title").text = entry.title
-        ET.SubElement(item, "link").text = entry.link
+        item = etree.SubElement(channel, 'item')
 
-        # Improved description extraction and cleanup for multiple cases
-        description_html = entry.description
+        # Title
+        etree.SubElement(item, 'title').text = entry.get('title', 'No Title')
 
-        # Remove unwanted parts like "Continue reading" and any extra "The post..." text
-        description_cleaned = re.sub(r'<p.*?>', '', description_html)  # Remove opening <p> tags
-        description_cleaned = re.sub(r'</p>', ' ', description_cleaned)  # Replace closing </p> with space
-        description_cleaned = re.sub(r'(<a.*?>.*?</a>|Continue reading.*|The post .* first appeared on .*)', '', description_cleaned)  # Remove links, "Continue reading", and "The post..." text
+        # Link
+        etree.SubElement(item, 'link').text = entry.get('link', '')
 
-        # Remove excessive whitespace and HTML entities (like &#160;)
-        description_cleaned = re.sub(r'&#\d+;', ' ', description_cleaned)  # Replace HTML entities with spaces
-        description_cleaned = re.sub(r'\s+', ' ', description_cleaned).strip()  # Remove excess whitespace
+        # GUID
+        guid = etree.SubElement(item, 'guid', isPermaLink='false')
+        guid.text = entry.get('id', '')
 
-        # Shorten the description if needed, and add ellipsis if too long
-        if len(description_cleaned) > 300:  # Optional: Limit description to 300 characters
-            description_cleaned = description_cleaned[:300].rsplit(' ', 1)[0] + '...'
+        # Publication Date
+        pub_date = entry.get('published', datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S +0000'))
+        etree.SubElement(item, 'pubDate').text = pub_date
 
-        # Set the cleaned description
-        ET.SubElement(item, "description").text = description_cleaned
+        # Description
+        description = entry.get('summary', '')
+        etree.SubElement(item, 'description').text = etree.CDATA(description)
 
-        ET.SubElement(item, "pubDate").text = entry.published
-        ET.SubElement(item, "guid").text = entry.id
+        # DC:Creator
+        dc_creator = etree.SubElement(item, '{http://purl.org/dc/elements/1.1/}creator')
+        dc_creator.text = entry.get('author', 'Unknown')
 
-        dc_creator = ET.SubElement(item, "dc:creator")
-        dc_creator.text = entry.get("author", "Unknown")
+        # Categories
+        categories = entry.get('tags', [])
+        if categories:
+            for tag in categories:
+                category = etree.SubElement(item, 'category')
+                category.text = tag.get('term', 'Unavailable')
+        else:
+            # Add 'Unavailable' category if no categories are found
+            category = etree.SubElement(item, 'category')
+            category.text = 'Unavailable'
 
-        # Handle embedded media, extracting the image and related details
-        if 'img' in description_html:
-            # Extract the URL for the image
-            img_start_index = description_html.find('src="') + 5
-            img_end_index = description_html.find('"', img_start_index)
-            img_url = description_html[img_start_index:img_end_index]
+        # Extract image from content or description
+        image_url = None
 
-            # Add media:thumbnail and media:content
-            media_thumbnail = ET.SubElement(item, "media:thumbnail")
-            media_thumbnail.set("url", img_url)
+        # Try content:encoded
+        content_encoded = entry.get('content', [])
+        if content_encoded:
+            content_html = content_encoded[0].value
+        else:
+            content_html = entry.get('summary', '')
 
-            media_content = ET.SubElement(item, "media:content")
-            media_content.set("type", "image/jpeg")
-            media_content.set("url", img_url)
+        # Unescape HTML entities
+        content_html = html.unescape(content_html)
 
-            # Extract and map alt text to media:title if available
-            alt_start = description_html.find('alt="') + 5
-            alt_end = description_html.find('"', alt_start)
-            if alt_start > 4 and alt_end > alt_start:
-                alt_text = description_html[alt_start:alt_end]
-                media_title = ET.SubElement(item, "media:title")
-                media_title.text = alt_text
+        # Use regex to find the first img tag
+        img_match = re.search(r'<img[^>]+src="([^">]+)"', content_html)
+        if img_match:
+            image_url = img_match.group(1)
+            print(image_url)
+
+        if not image_url:
+            # Use placeholder image if no image is found
+            # Placeholder image URL (solid color image)
+            placeholder_image_url = 'https://via.placeholder.com/400x300/38487A/FFFFFF?text=none'
+            image_url = placeholder_image_url
+
+        # Add media:content and media:thumbnail
+        media_content = etree.SubElement(item, '{http://search.yahoo.com/mrss/}content')
+        media_content.set('url', image_url)
+        media_content.set('type', 'image/jpeg')
+        # Add media:thumbnail element
+        media_thumbnail = etree.SubElement(item, '{http://search.yahoo.com/mrss/}thumbnail')
+        media_thumbnail.set('url', image_url)
 
     # Ensure the static directory exists
     os.makedirs("static", exist_ok=True)
 
-    # Write the updated RSS feed to an XML file
-    tree = ET.ElementTree(rss)
-    ET.indent(tree, space="  ")
-    tree.write("static/new_okenergytoday.rss", encoding="utf-8", xml_declaration=True)
+    # Write the RSS feed to a file with pretty printing
+    tree = etree.ElementTree(rss)
+    tree.write("static/new_okenergytoday.rss", encoding="utf-8", xml_declaration=True, pretty_print=True)
 
 if __name__ == "__main__":
     update_feed()
