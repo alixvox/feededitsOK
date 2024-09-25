@@ -1,13 +1,37 @@
 import os
+import requests
 import feedparser
 from lxml import etree
 from datetime import datetime
+import time
 
 def update_feed():
-    # Parse the original feed
+    # Fetch the feed content using requests with a retry mechanism
     original_feed_url = "https://www.oudaily.com/search/?c[]=news,sports,culture&f=rss&ips=1080"
-    feed = feedparser.parse(original_feed_url)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(original_feed_url, timeout=10)
+            if response.status_code == 200:
+                break
+            else:
+                print(f"Attempt {attempt+1}: Failed to fetch the feed. Status code: {response.status_code}")
+        except requests.exceptions.RequestException as e:
+            print(f"Attempt {attempt+1}: Exception occurred: {e}")
+        time.sleep(5)  # Wait before retrying
+    else:
+        print("Failed to fetch the feed after multiple attempts.")
+        return
     
+    # Parse the feed content
+    feed_content = response.content
+    feed = feedparser.parse(feed_content)
+    
+    # Check for HTTP status and bozo exceptions
+    print("Feed Status:", feed.get('status', 'No status'))
+    if feed.bozo:
+        print("An error occurred while parsing the feed:")
+        print(feed.bozo_exception)    
     # Namespaces mapping
     nsmap = {
         'atom': 'http://www.w3.org/2005/Atom',
@@ -47,6 +71,7 @@ def update_feed():
     
     # Process each entry in the feed
     for entry in feed.entries:
+        print(entry)
 
         item = etree.SubElement(channel, 'item')
         
