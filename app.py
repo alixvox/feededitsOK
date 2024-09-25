@@ -6,11 +6,13 @@ from feed_edits import nondoc_feededit
 from feed_edits import okenergytoday_feededit
 from feed_edits import oudaily_feededit
 
+# Flask app to serve the RSS feeds
 app = Flask(__name__)
 
 # Scheduler to periodically update the RSS feeds
 scheduler = BackgroundScheduler()
 
+# Function to update the RSS feeds
 def update_feeds():
     print("Updating feeds at", time.strftime("%Y-%m-%d %H:%M:%S"))
     freepressokc_feededit.update_feed()

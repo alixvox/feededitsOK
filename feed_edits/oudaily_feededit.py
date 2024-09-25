@@ -11,6 +11,9 @@ def update_feed():
     max_retries = 3
     for attempt in range(max_retries):
         try:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (compatible; feededitsOK/1.0; +https://feededitsok-f4bcffc7f729.herokuapp.com)'
+            }
             response = requests.get(original_feed_url, timeout=10)
             if response.status_code == 200:
                 break

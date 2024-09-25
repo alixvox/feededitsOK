@@ -9,6 +9,7 @@ def update_feed():
     original_feed_url = "https://freepressokc.com/feed/"
     feed = feedparser.parse(original_feed_url)
 
+    # Namespaces for the RSS feed
     nsmap = {
         'content': 'http://purl.org/rss/1.0/modules/content/',
         'wfw': 'http://wellformedweb.org/CommentAPI/',
@@ -117,7 +118,7 @@ def update_feed():
 
     # Ensure the static directory exists
     os.makedirs("static", exist_ok=True)
-    
+
     # Write the RSS feed to a file with pretty printing
     tree = etree.ElementTree(rss)
     tree.write("static/new_freepressokc.rss", encoding="utf-8", xml_declaration=True, pretty_print=True)

@@ -105,7 +105,7 @@ def update_feed():
         if not image_url:
             # Use placeholder image if no image is found
             # Placeholder image URL (solid color image)
-            placeholder_image_url = 'https://via.placeholder.com/400x300/38487A/FFFFFF?text=No+Image'
+            placeholder_image_url = 'https://griffin-communications.akamaized.net/WebPages/news-aggregation/2024/oket-placeholder.jpg'
             image_url = placeholder_image_url
 
         # Add media:content and media:thumbnail
