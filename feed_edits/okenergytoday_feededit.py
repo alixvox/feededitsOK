@@ -12,8 +12,6 @@ def update_feed():
 
     # Namespaces
     nsmap = {
-        # Removed the default namespace mapping
-        # None: 'http://www.w3.org/2005/Atom',
         'content': 'http://purl.org/rss/1.0/modules/content/',
         'wfw': 'http://wellformedweb.org/CommentAPI/',
         'dc': 'http://purl.org/dc/elements/1.1/',

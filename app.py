@@ -5,6 +5,8 @@ from feed_edits import freepressokc_feededit
 from feed_edits import nondoc_feededit
 from feed_edits import okenergytoday_feededit
 from feed_edits import oudaily_feededit
+from pytz import timezone
+import pytz
 
 # Flask app to serve the RSS feeds
 app = Flask(__name__)
@@ -12,9 +14,12 @@ app = Flask(__name__)
 # Scheduler to periodically update the RSS feeds
 scheduler = BackgroundScheduler()
 
+# Timezone setup (CST)
+cst_tz = timezone('America/Chicago')
+
 # Function to update the RSS feeds
 def update_feeds():
-    print("Updating feeds at", time.strftime("%Y-%m-%d %H:%M:%S"))
+    print("Updating feeds at", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()))
     freepressokc_feededit.update_feed()
     nondoc_feededit.update_feed()
     okenergytoday_feededit.update_feed()
@@ -23,8 +28,8 @@ def update_feeds():
 # Initial feed update
 update_feeds()
 
-# Schedule periodic updates every 20 minutes
-scheduler.add_job(func=update_feeds, trigger="interval", hours=2)
+# Schedule the feed updates at 8 AM and 5 PM CST every day
+scheduler.add_job(func=update_feeds, trigger="cron", hour="8,17", minute="0", timezone=cst_tz)
 scheduler.start()
 
 # Routes to serve the RSS feeds

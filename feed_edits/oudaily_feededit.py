@@ -88,7 +88,6 @@ def update_feed():
     
     # Process each entry in the feed
     for entry in feed.entries:
-        print(entry)
 
         item = etree.SubElement(channel, 'item')
         
